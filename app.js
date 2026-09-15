@@ -2,6 +2,7 @@
   const RULESET_ID = "bubble-bliss-v1.0";
   const LS_SCORE = "bubble-bliss-highscore";
   const LS_ACH = "bubble-bliss-achs";
+  const LS_STAGE = "bubble-bliss-best-stage";
   const COLORS = [
     { name: "coral", fill: "#ff8fab", shine: "#fff1f5" },
     { name: "peach", fill: "#ffb347", shine: "#fff3dc" },
@@ -72,6 +73,10 @@
     challengeLeft: 60,
     tutorialT: 0,
     zenClean: 0,
+    stage: 1,
+    stagePops: 0,
+    lives: 3,
+    bestStage: Number(localStorage.getItem("bubble-bliss-best-stage") || 0),
     high: Number(localStorage.getItem(LS_SCORE) || 0)
   };
 
@@ -189,7 +194,7 @@
       x = r + 8 + Math.random() * Math.max(8, W - 2 * r - 16);
     }
     const color = (game.feverActive ? GOLD : COLORS[Math.floor(Math.random() * COLORS.length)]);
-    const haste = 1 + Math.min(0.85, game.time / 50);
+    const haste = 1 + Math.min(0.85, game.time / 50) + (mode === "endless" ? (game.stage - 1) * 0.14 : 0);
     bubbles.push({
       x, baseX: x, y: H + r - 2, r,
       vy: (48 + Math.random() * 42) * haste,
@@ -330,6 +335,17 @@
     }
 
     checkAchs();
+    if (mode === "endless") {
+      game.stagePops += group.length;
+      if (game.stagePops >= 10 + game.stage * 4) {
+        game.stage += 1;
+        game.stagePops = 0;
+        showBanner("第 " + game.stage + " 关");
+        toast("关卡 " + game.stage + " · 速度提升");
+        addShake("chain");
+        sfxFever();
+      }
+    }
   }
 
   function missBubble(b) {
@@ -342,6 +358,11 @@
     log("漏泡 连击归零 Fever剩余=" + game.feverLeft.toFixed(2));
     const i = bubbles.indexOf(b);
     if (i >= 0) bubbles.splice(i, 1);
+    if (mode === "endless") {
+      game.lives -= 1;
+      toast("剩余生命 " + Math.max(0, game.lives));
+      if (game.lives <= 0) enterResult();
+    }
   }
 
   function hitTest(x, y) {
@@ -377,6 +398,9 @@
     game.challengeLeft = 60;
     game.tutorialT = 3.2;
     game.zenClean = 0;
+    game.stage = 1;
+    game.stagePops = 0;
+    game.lives = 3;
     stopFeverPad();
     if (!keepMode) mode = "zen";
   }
@@ -400,8 +424,9 @@
     resultOverlay.classList.add("hidden");
     hud.style.display = "block";
     tutorial.style.opacity = "1";
-    hudRightLabel.textContent = mode === "challenge" ? "剩余" : "最高分";
+    hudRightLabel.textContent = mode === "challenge" ? "剩余" : (mode === "endless" ? "关卡 / 生命" : "最高分");
     comboBanner.style.opacity = "0";
+    tutorial.textContent = mode === "endless" ? "漏泡会掉生命，过关会越来越快" : "点破上升的泡泡，保持连击";
     for (let i = 0; i < 3; i++) spawnBubble();
     log("开局 mode=" + mode);
   }
@@ -409,11 +434,15 @@
   function enterResult() {
     state = "result";
     stopFeverPad();
-    if (mode === "challenge") {
+    if (mode === "challenge" || mode === "endless") {
       if (game.score > game.high) {
         game.high = game.score;
         localStorage.setItem(LS_SCORE, String(game.high));
       }
+    }
+    if (mode === "endless" && game.stage > game.bestStage) {
+      game.bestStage = game.stage;
+      localStorage.setItem(LS_STAGE, String(game.bestStage));
     }
     menuOverlay.classList.add("hidden");
     resultOverlay.classList.remove("hidden");
@@ -426,6 +455,7 @@
       "连击峰值 " + game.comboPeak,
       "爆泡 " + game.pops + " · 漏泡 " + game.misses
     ];
+    if (mode === "endless") lines.splice(1, 0, "到达关卡 " + game.stage + " · 最高关卡 " + game.bestStage);
     lines.forEach(function (line) {
       const p = document.createElement("div");
       p.textContent = line;
@@ -455,7 +485,8 @@
 
   function intervalNow() {
     const steps = Math.floor(game.time / 12);
-    return Math.max(params.spawnMin, params.spawnInterval - steps * 0.04);
+    const extra = mode === "endless" ? (game.stage - 1) * 0.04 : 0;
+    return Math.max(0.16, params.spawnMin, params.spawnInterval - steps * 0.04 - extra);
   }
 
   function tick(dt) {
@@ -472,7 +503,7 @@
         enterResult();
         return;
       }
-    } else {
+    } else if (mode === "zen") {
       game.zenClean += dt;
       if (game.zenClean >= 60) unlock("zen60");
     }
@@ -501,7 +532,10 @@
       b.phase += Math.PI * 2 * 0.5 * dt;
       b.x = b.baseX + Math.sin(b.phase) * 8;
       b.x = Math.max(b.r + 2, Math.min(W - b.r - 2, b.x));
-      if (b.y < leakY) missBubble(b);
+      if (b.y < leakY) {
+        missBubble(b);
+        if (state !== "playing") return;
+      }
     }
 
     for (let i = particles.length - 1; i >= 0; i--) {
@@ -540,6 +574,7 @@
     hudCombo.textContent = game.combo + " · " + comboMul().toFixed(1) + "x";
     hudCombo.className = "value" + (game.combo >= 20 ? " blaze" : game.combo >= 8 ? " hot" : "");
     if (mode === "challenge") hudRight.textContent = Math.ceil(game.challengeLeft) + "s";
+    else if (mode === "endless") hudRight.textContent = game.stage + " · " + "♥".repeat(Math.max(0, game.lives));
     else hudRight.textContent = String(game.high);
     feverBar.style.display = game.feverActive ? "block" : "none";
     feverFill.style.width = (game.feverActive ? (game.feverLeft / 15) * 100 : 0) + "%";
@@ -729,6 +764,7 @@
   });
   onTap("btnZen", function () { enterPlay("zen"); });
   onTap("btnChallenge", function () { enterPlay("challenge"); });
+  onTap("btnEndless", function () { enterPlay("endless"); });
   onTap("btnReplay", function () { enterPlay(mode); });
   onTap("btnMenu", function () { enterMenu(); });
 

@@ -40,6 +40,7 @@
       box-shadow: 0 8px 18px rgba(255, 106, 160, 0.35);
     }
     button.alt { background: linear-gradient(180deg, #7ad7ff, #4db7f0); box-shadow: 0 8px 18px rgba(77, 183, 240, 0.35); }
+    button.rush { background: linear-gradient(180deg, #ffd43b, #f59f00); color: #4a2c00; box-shadow: 0 8px 18px rgba(245, 159, 0, 0.4); }
     button.ghost { background: rgba(255,255,255,0.7); color: var(--ink); box-shadow: none; }
     #hud {
       position: absolute; top: 0; left: 0; right: 0;
