@@ -65,7 +65,12 @@
       background: rgba(255,255,255,0.35); overflow: hidden; display: none;
       box-shadow: 0 0 16px rgba(255, 191, 36, 0.55);
     }
-    #feverFill { height: 100%; width: 0; background: linear-gradient(90deg, #ffe066, #ff922b, #fa5252); }
+    #feverBar.climax { box-shadow: 0 0 22px rgba(255, 80, 140, 0.9); height: 12px; }
+    #comboBanner.climax {
+      color: #ffe066;
+      font-size: clamp(42px, 14vw, 78px);
+      text-shadow: 0 0 24px #ff4d6d, 0 8px 30px rgba(255, 80, 140, 0.8);
+    }
     #comboBanner {
       position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%);
       pointer-events: none; font-weight: 900; letter-spacing: 2px;

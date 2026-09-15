@@ -141,7 +141,12 @@
     ach: function () { if (sfxOn && urls.ach) playUrl(urls.ach, 0.75, false); },
     streak: function () { if (sfxOn && urls.fever) playUrl(urls.fever, 0.6, false); },
     setFever: function (on) {
-      if (bgmEl) bgmEl.playbackRate = on ? 1.18 : 1;
+      if (bgmEl) bgmEl.playbackRate = on ? 1.22 : 1;
+    },
+    setHeat: function (r) {
+      if (bgmEl) {
+        try { bgmEl.playbackRate = Math.max(0.95, Math.min(1.55, r || 1)); } catch (e) {}
+      }
     },
     tick: function () {}
   };

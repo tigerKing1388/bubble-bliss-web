@@ -70,6 +70,8 @@
     comboPeak: 0,
     feverLeft: 0,
     feverActive: false,
+    climaxT: 0,
+    lastClimaxAt: -99,
     challengeLeft: 60,
     tutorialT: 0,
     zenClean: 0,
@@ -165,15 +167,43 @@
     if (game.score >= 3000) unlock("score3k");
   }
 
-  function showBanner(text) {
+  function showBanner(text, hold) {
     bannerText = text;
-    bannerT = 0.55;
+    bannerT = hold || 0.7;
     comboBanner.textContent = text;
+    comboBanner.classList.toggle("climax", /高潮|黄金|闯关/.test(text));
+  }
+
+  function heat() {
+    return Math.min(1, game.combo / 24 + (game.feverActive ? 0.22 : 0) + (game.climaxT > 0 ? 0.4 : 0));
+  }
+
+  function triggerClimax(label) {
+    if (game.time - game.lastClimaxAt < 1.1) {
+      game.climaxT = Math.max(game.climaxT, 2.2);
+      return;
+    }
+    game.lastClimaxAt = game.time;
+    game.climaxT = 3.6;
+    showBanner(label || "高潮爆发", 1.15);
+    toast("高潮来了！");
+    hitStop = Math.max(hitStop, 0.2);
+    flash = 1;
+    zoom = 1.24;
+    addShake("climax");
+    if (window.GameAudio) {
+      GameAudio.fever();
+      GameAudio.setHeat(1.5);
+    }
+    var i;
+    for (i = 0; i < 8; i++) {
+      spawnBurst(W * Math.random(), H * (0.15 + Math.random() * 0.55), GOLD, 36, true);
+    }
   }
 
   function addShake(kind) {
-    const map = { pop: 2.4, combo: 5.5, chain: 11, fever: 16 };
-    const v = map[kind] || 2.4;
+    const map = { pop: 3.2, combo: 7.5, chain: 14, fever: 20, climax: 26 };
+    const v = map[kind] || 3.2;
     if (v >= shake) { shake = v; shakeKind = v; }
   }
 
@@ -205,7 +235,7 @@
   }
 
   function spawnBurst(x, y, color, n, goldRain) {
-    const count = Math.min(80, goldRain ? n + 22 : n);
+    const count = Math.min(110, (goldRain ? n + 28 : n) + Math.floor(heat() * 28));
     for (let i = 0; i < count; i++) {
       if (particles.length >= 600) particles.shift();
       const a = Math.random() * Math.PI * 2;
@@ -252,7 +282,7 @@
       big: big,
       color: game.feverActive ? "#fff3bf" : (fromChain ? "#ff6b6b" : "#3b2330")
     });
-    spawnBurst(b.x, b.y, b.color, fromChain ? 28 : 22, game.feverActive);
+    spawnBurst(b.x, b.y, b.color, fromChain ? 36 : 26, game.feverActive || game.climaxT > 0);
     addRipple(b.x, b.y, true);
     return s;
   }
@@ -298,7 +328,8 @@
         flash = Math.max(flash, 0.45);
         zoom = 1.08;
         addShock(b.x, b.y, 1.4);
-        showBanner("连锁 x" + group.length);
+        showBanner("连锁 x" + group.length, 0.85);
+        if (group.length >= 5) triggerClimax("连锁高潮");
         log("连锁 x" + group.length + " 连击=" + game.combo);
       }
     }
@@ -310,14 +341,19 @@
     }
 
     sfxPop();
-    if (game.combo === 10 || game.combo === 20 || game.combo === 30) {
+    if (game.combo === 8) toast("热起来了");
+    if (game.combo === 10 || game.combo === 15) {
       sfxStreak(game.combo);
-      showBanner(game.combo + " 连击!");
+      showBanner(game.combo + " 连击蓄力", 0.8);
     }
-    addShake(game.combo >= 8 ? "combo" : "pop");
-    flash = Math.max(flash, game.combo >= 8 ? 0.28 : 0.16);
-    zoom = Math.max(zoom, game.combo >= 8 ? 1.045 : 1.02);
-    addShock(b.x, b.y, game.combo >= 8 ? 1.1 : 0.7);
+    if (game.combo === 18 || game.combo === 25 || game.combo === 40) {
+      sfxStreak(game.combo);
+      triggerClimax(game.combo + " 连高潮");
+    }
+    addShake(game.combo >= 12 ? "combo" : (game.combo >= 6 ? "combo" : "pop"));
+    flash = Math.max(flash, 0.18 + heat() * 0.45);
+    zoom = Math.max(zoom, 1.02 + heat() * 0.08);
+    addShock(b.x, b.y, 0.8 + heat() * 1.4);
 
     if (!game.feverActive && game.combo >= params.feverThreshold) {
       game.feverActive = true;
@@ -325,13 +361,7 @@
       unlock("fever");
       sfxFever();
       startFeverPad();
-      addShake("fever");
-      hitStop = 0.12;
-      flash = 0.7;
-      zoom = 1.12;
-      showBanner("黄金时刻!");
-      toast("黄金时刻！得分 ×3");
-      log("Fever 开始 连击=" + game.combo);
+      triggerClimax("黄金高潮");
     }
 
     checkAchs();
@@ -340,10 +370,9 @@
       if (game.stagePops >= 10 + game.stage * 4) {
         game.stage += 1;
         game.stagePops = 0;
-        showBanner("第 " + game.stage + " 关");
+        showBanner("第 " + game.stage + " 关", 0.9);
         toast("关卡 " + game.stage + " · 速度提升");
-        addShake("chain");
-        sfxFever();
+        triggerClimax("闯关高潮");
       }
     }
   }
@@ -354,6 +383,8 @@
     game.misses += 1;
     game.combo = 0;
     game.zenClean = 0;
+    game.climaxT = 0;
+    if (window.GameAudio) GameAudio.setHeat(1);
     sfxMiss();
     log("漏泡 连击归零 Fever剩余=" + game.feverLeft.toFixed(2));
     const i = bubbles.indexOf(b);
@@ -384,6 +415,8 @@
     fogs.length = 0;
     shocks.length = 0;
     flash = 0; zoom = 1; hitStop = 0; bannerT = 0;
+    game.climaxT = 0;
+    game.lastClimaxAt = -99;
     game.time = 0;
     game.spawnAcc = params.spawnInterval * 3;
     game.score = 0;
@@ -572,31 +605,44 @@
     game.scoreDisplay += (game.score - game.scoreDisplay) * Math.min(1, dt * 14);
     hudScore.textContent = String(Math.round(game.scoreDisplay));
     hudCombo.textContent = game.combo + " · " + comboMul().toFixed(1) + "x";
-    hudCombo.className = "value" + (game.combo >= 20 ? " blaze" : game.combo >= 8 ? " hot" : "");
+    hudCombo.className = "value" + (game.climaxT > 0 || game.combo >= 18 ? " blaze" : game.combo >= 8 ? " hot" : "");
     if (mode === "challenge") hudRight.textContent = Math.ceil(game.challengeLeft) + "s";
     else if (mode === "endless") hudRight.textContent = game.stage + " · " + "♥".repeat(Math.max(0, game.lives));
     else hudRight.textContent = String(game.high);
-    feverBar.style.display = game.feverActive ? "block" : "none";
-    feverFill.style.width = (game.feverActive ? (game.feverLeft / 15) * 100 : 0) + "%";
+    var hv = heat();
+    feverBar.style.display = "block";
+    feverFill.style.width = ((game.feverActive ? game.feverLeft / 15 : hv) * 100) + "%";
+    feverBar.classList.toggle("climax", game.climaxT > 0);
 
-    if (shake > 0) shake = Math.max(0, shake - dt * 14);
+    if (game.climaxT > 0) {
+      game.climaxT = Math.max(0, game.climaxT - dt);
+      if (particles.length < 500 && Math.random() < 0.5) spawnBurst(Math.random() * W, 8 + Math.random() * 40, GOLD, 7, true);
+      if (game.climaxT <= 0 && window.GameAudio) GameAudio.setHeat(game.feverActive ? 1.22 : 1);
+    } else if (window.GameAudio) {
+      GameAudio.setHeat(1 + hv * 0.48);
+    }
+
+    if (shake > 0) shake = Math.max(0, shake - dt * (game.climaxT > 0 ? 5 : 11));
     if (flash > 0) flash = Math.max(0, flash - dt * 3.2);
     zoom += (1 - zoom) * Math.min(1, dt * 10);
     if (bannerT > 0) {
       bannerT -= dt;
-      const k = bannerT > 0.35 ? (0.55 - bannerT) / 0.2 : bannerT / 0.35;
-      comboBanner.style.opacity = String(Math.max(0, Math.min(1, k)));
-      comboBanner.style.transform = "translate(-50%, -50%) scale(" + (1.15 - (0.55 - bannerT) * 0.4) + ")";
+      comboBanner.style.opacity = String(Math.max(0, Math.min(1, bannerT * 1.6)));
+      comboBanner.style.transform = "translate(-50%, -50%) scale(" + (1.05 + heat() * 0.25) + ")";
     } else comboBanner.style.opacity = "0";
   }
 
   function drawBg() {
     const pulse = game.feverActive ? 0.5 + 0.5 * Math.sin(game.time * 10) : 0;
     const g = ctx.createLinearGradient(0, 0, 0, H);
-    if (game.feverActive) {
+    if (game.climaxT > 0) {
+      g.addColorStop(0, "#fff3bf");
+      g.addColorStop(0.45, "#ff6b6b");
+      g.addColorStop(1, "#be4bdb");
+    } else if (game.feverActive) {
       g.addColorStop(0, pulse > 0.6 ? "#ffd43b" : "#ff922b");
       g.addColorStop(1, "#fa5252");
-    } else if (game.combo >= 12) {
+    } else if (game.combo >= 8) {
       g.addColorStop(0, "#b8c0ff");
       g.addColorStop(1, "#ffc9de");
     } else {
@@ -610,7 +656,7 @@
     ctx.ellipse(W * 0.2, H * 0.18, 180, 70, 0, 0, Math.PI * 2);
     ctx.ellipse(W * 0.72, H * 0.12, 160, 54, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = game.feverActive ? "rgba(255,80,80,0.55)" : "rgba(255,255,255,0.28)";
+    ctx.strokeStyle = (game.climaxT > 0 || game.feverActive) ? "rgba(255,80,80,0.55)" : "rgba(255,255,255,0.28)";
     ctx.setLineDash([6, 10]);
     ctx.beginPath();
     ctx.moveTo(0, 70);
@@ -657,7 +703,8 @@
     ctx.scale(zoom, zoom);
     ctx.translate(-W / 2, -H / 2);
     if (shake > 0) {
-      ctx.translate((Math.random() - 0.5) * shakeKind * 2.4, (Math.random() - 0.5) * shakeKind * 2.4);
+      const mag = shakeKind * (game.climaxT > 0 ? 3.4 : 2.4);
+      ctx.translate((Math.random() - 0.5) * mag, (Math.random() - 0.5) * mag);
     }
     drawBg();
     for (const s of shocks) {
@@ -714,9 +761,16 @@
       ctx.globalAlpha = 1;
     }
     if (flash > 0) {
-      ctx.fillStyle = game.feverActive
-        ? "rgba(255, 210, 60, " + (flash * 0.35) + ")"
+      ctx.fillStyle = (game.climaxT > 0 || game.feverActive)
+        ? "rgba(255, 170, 40, " + (flash * 0.42) + ")"
         : "rgba(255, 255, 255, " + (flash * 0.28) + ")";
+      ctx.fillRect(0, 0, W, H);
+    }
+    if (heat() > 0.2) {
+      const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.2, W / 2, H / 2, H * 0.85);
+      vg.addColorStop(0, "rgba(0,0,0,0)");
+      vg.addColorStop(1, "rgba(80,0,40," + (0.12 + heat() * 0.32) + ")");
+      ctx.fillStyle = vg;
       ctx.fillRect(0, 0, W, H);
     }
     ctx.restore();
