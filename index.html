@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>啵啵泡泡</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="game"></canvas>
+    <div id="hud">
+      <div class="hud-row">
+        <div class="hud-card"><div class="label">分数</div><div class="value" id="hudScore">0</div></div>
+        <div class="hud-card"><div class="label">连击 / 倍率</div><div class="value" id="hudCombo">0 · 1.0x</div></div>
+        <div class="hud-card right"><div class="label" id="hudRightLabel">最高分</div><div class="value tiny" id="hudRight">0</div></div>
+      </div>
+      <div id="feverBar"><div id="feverFill"></div></div>
+    </div>
+    <div id="tutorial">点破上升的泡泡，保持连击</div>
+    <div id="comboBanner"></div>
+    <div id="toasts"></div>
+    <div class="overlay" id="menuOverlay">
+      <div class="panel">
+        <h1>啵啵泡泡</h1>
+        <p class="sub">Bubble Bliss</p>
+        <p class="hint">点破泡泡攒连击。点空处只出涟漪，漏泡会断连击但不扣分。</p>
+        <div class="btns">
+          <button id="btnZen" type="button">禅意模式</button>
+          <button id="btnChallenge" class="alt" type="button">挑战 60 秒</button>
+        </div>
+      </div>
+    </div>
+    <div class="overlay hidden" id="resultOverlay">
+      <div class="panel">
+        <h1>本局结束</h1>
+        <div id="resultStats"></div>
+        <div class="ach-list" id="resultAchs"></div>
+        <div class="btns">
+          <button id="btnReplay" type="button">再来一局</button>
+          <button id="btnMenu" class="ghost" type="button">回菜单</button>
+        </div>
+      </div>
+    </div>
+    <div id="audioDock">
+      <button id="btnMusic" type="button">音乐开</button>
+      <button id="btnSfx" class="alt" type="button">音效开</button>
+    </div>
+  </div>
+  <script src="audio.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
